@@ -130,8 +130,6 @@ trap(struct trapframe *tf)
                   priorityBoost();
                   stoken = 0;
               }
-
-          //cprintf("token %d\n",myproc()->token);
               if(myproc()->token == 8){
                   myproc()->token = 0;
                   if(myproc()->priority > 0){

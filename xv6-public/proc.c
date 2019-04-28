@@ -364,14 +364,6 @@ scheduler(void)
 #elif MLFQ_SCHED
     acquire(&ptable.lock);
 
-    /*if(stoken == 100){
-        stoken = 0;
-        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-            p->Qlevel = 0;
-            p->priority = 0;
-            p->token = 0;
-        }
-    }*/
     struct proc *maxP = 0;
     int L0 = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -382,7 +374,7 @@ scheduler(void)
             switchuvm(p);
             p->token = 0;
             p->state = RUNNING;
-            swtch(&(c->scheduler), p->context); // context switch
+            swtch(&(c->scheduler), p->context);
             switchkvm();
             c->proc = 0;
         }
@@ -448,9 +440,7 @@ setpriority(int pid, int priority){
     struct proc *p;
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-        //cprintf("occur : %d %d %d %d\n",pid, priority, stoken, myproc()->Qlevel);
         if(p->pid == pid){
-            //p->priority = priority;
             break;
         }
     }
