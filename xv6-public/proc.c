@@ -440,7 +440,7 @@ setpriority(int pid, int priority){
     struct proc *p;
     acquire(&ptable.lock);
     if(priority > 10){
-        cprintf("Please set priority 1 ~ 10\n");
+        cprintf("Please set priority 1~10\n");
         return;
     }
     else{
@@ -474,7 +474,7 @@ monopolize(int password){
         }
     }
     else{
-        cprintf("incorrect password! killed process : %d\n",myproc()->pid);
+        cprintf("Incorrect password!, killed process : %d\n",myproc()->pid);
         myproc()->killed = 1;
     }
 }
