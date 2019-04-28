@@ -439,14 +439,20 @@ void
 setpriority(int pid, int priority){
     struct proc *p;
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-        if(p->pid == pid){
-            break;
-        }
+    if(priority > 10){
+        cprintf("Please set priority 1 ~ 10\n");
+        return;
     }
-    p->priority = priority;
-    release(&ptable.lock);
-    return;
+    else{
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+            if(p->pid == pid){
+                break;
+            }
+        }
+        p->priority = priority;
+        release(&ptable.lock);
+        return;
+    }
 }
 
 int getlev(void){
