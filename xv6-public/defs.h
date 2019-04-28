@@ -120,6 +120,10 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+void            setpriority(int,int);
+int             getlev(void);
+void            monopolize(int);
+void            priorityBoost(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -162,6 +166,7 @@ void            timerinit(void);
 // trap.c
 void            idtinit(void);
 extern uint     ticks;
+extern uint     stoken;
 void            tvinit(void);
 extern struct spinlock tickslock;
 

@@ -14,6 +14,8 @@ struct {
 
 static struct proc *initproc;
 
+extern uint stoken;
+
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
@@ -111,6 +113,11 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
+
+  p->token = 0;
+  p->Qlevel = 0;
+  p->priority = 0;
+  p->mono = 0;
 
   return p;
 }
@@ -318,18 +325,99 @@ wait(void)
 //  - choose a process to run
 //  - swtch to start running that process
 //  - eventually that process transfers control
-//      via swtch back to the scheduler.
+//      via swtch back to the scheduler
+
 void
 scheduler(void)
 {
-  struct proc *p;
+  struct proc *p; //*p __attribute__((unused));
   struct cpu *c = mycpu();
   c->proc = 0;
-  
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
+#ifdef FCFS_SCHED
+    acquire(&ptable.lock);
+    struct proc *minP = 0;    
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(p->state != RUNNABLE){
+            continue;
+        }
+        if(p != &ptable.proc[NPROC]){
+            for(minP = ptable.proc; minP < &ptable.proc[NPROC]; minP++){
+                if(minP->state == RUNNABLE){
+                    if(minP->pid < p->pid){
+                        p = minP;
+                    }
+                }
+            }
+            c->proc = p;
+            switchuvm(p);
+            p->state = RUNNING;
+            swtch(&(c->scheduler),p->context);
+            switchkvm();
+            c->proc = 0;    
+        }
+    }
+    release(&ptable.lock);
+#elif MLFQ_SCHED
+    acquire(&ptable.lock);
+
+    /*if(stoken == 100){
+        stoken = 0;
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+            p->Qlevel = 0;
+            p->priority = 0;
+            p->token = 0;
+        }
+    }*/
+    struct proc *maxP = 0;
+    int L0 = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(p->Qlevel == 0 && p->state == RUNNABLE){
+            //L0 schedulig
+            L0++;
+            c->proc = p;
+            switchuvm(p);
+            p->token = 0;
+            p->state = RUNNING;
+            swtch(&(c->scheduler), p->context); // context switch
+            switchkvm();
+            c->proc = 0;
+        }
+    }
+
+    if(L0 == 0){
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+            if(p->Qlevel == 1 && p->state == RUNNABLE){
+                //L1 scheduling
+                if(maxP == 0)
+                    maxP = p;
+                if(p->priority > maxP->priority){
+                    maxP = p;
+                }
+                else if(p->priority == maxP->priority){
+                    if(p->pid < maxP->pid){
+                        maxP = p;
+                    }
+                }
+            }
+        }
+        if(maxP != 0){
+            c->proc = maxP;
+            switchuvm(maxP);
+            maxP->token = 0;
+            maxP->state = RUNNING;
+            swtch(&(c->scheduler), maxP->context);
+            switchkvm();
+            c->proc = 0;
+        }
+    }
+
+    release(&ptable.lock);
+                    
+#else
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -351,9 +439,63 @@ scheduler(void)
       c->proc = 0;
     }
     release(&ptable.lock);
-
+#endif
   }
 }
+
+void
+setpriority(int pid, int priority){
+    struct proc *p;
+    acquire(&ptable.lock);
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        //cprintf("occur : %d %d %d %d\n",pid, priority, stoken, myproc()->Qlevel);
+        if(p->pid == pid){
+            //p->priority = priority;
+            break;
+        }
+    }
+    p->priority = priority;
+    release(&ptable.lock);
+    return;
+}
+
+int getlev(void){
+    return myproc()->Qlevel;
+}
+
+
+void
+monopolize(int password){
+    if(password == 2015004766){
+        if(myproc()->mono == 0){
+            myproc()->Qlevel = 0;
+            myproc()-> mono = 1;
+        }
+        else{
+            myproc()->Qlevel = 0;
+            myproc()->priority = 0;
+            myproc()->mono = 0;
+        }
+    }
+    else{
+        cprintf("incorrect password! killed process : %d\n",myproc()->pid);
+        myproc()->killed = 1;
+    }
+}
+
+void
+priorityBoost(void){
+    struct proc *p;
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+            if(p->Qlevel == 1){
+                p->Qlevel = 0;
+                p->priority = 0;
+                p->token = 0;
+            }
+            yield();
+        }
+}
+
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores

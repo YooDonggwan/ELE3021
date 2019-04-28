@@ -13,6 +13,7 @@ struct gatedesc idt[256];
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
+uint stoken;
 
 void
 tvinit(void)
@@ -103,8 +104,48 @@ trap(struct trapframe *tf)
   // Force process to give up CPU on clock tick.
   // If interrupts were on while locks held, would need to check nlock.
   if(myproc() && myproc()->state == RUNNING &&
-     tf->trapno == T_IRQ0+IRQ_TIMER)
-    yield();
+     tf->trapno == T_IRQ0+IRQ_TIMER){
+      myproc()->token++;
+#ifdef FCFS_SCHED   
+      //fcfs sched
+      if(myproc()->token >= 100){
+          myproc()->killed = 1;
+          cprintf("killed process %d\n",myproc()->pid);
+          yield();
+      }
+#elif MLFQ_SCHED      
+      //mlfq level 0
+      if(myproc()->mono != 1){
+          stoken++;
+          if(myproc()->Qlevel == 0){
+              if(myproc()->token == 4){
+                  myproc()->token = 0;
+                  myproc()->Qlevel = 1;
+                  yield();
+              }
+          }
+      // mlfq level 1
+          else if(myproc()->Qlevel == 1){
+              if(stoken == 100){
+                  priorityBoost();
+                  stoken = 0;
+              }
+
+          //cprintf("token %d\n",myproc()->token);
+              if(myproc()->token == 8){
+                  myproc()->token = 0;
+                  if(myproc()->priority > 0){
+                      myproc()->priority--;
+                  }
+                  yield();
+              }
+          }
+      }
+
+#else
+      yield();
+#endif
+  }
 
   // Check if the process has been killed since we yielded
   if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)
