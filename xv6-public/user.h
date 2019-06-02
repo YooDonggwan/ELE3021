@@ -27,6 +27,9 @@ void yield(void);
 void setpriority(int,int);
 int getlev(void);
 void monopolize(int);
+int thread_create(thread_t*, void*, void*);
+void thread_exit(void*) __attribute__((noreturn));
+int thread_join(thread_t, void**);
 
 // ulib.c
 int stat(const char*, struct stat*);

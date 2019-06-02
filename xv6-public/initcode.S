@@ -5,11 +5,11 @@
 #include "traps.h"
 
 
-# exec(init, argv)
+# exec(myinit, argv)
 .globl start
 start:
   pushl $argv
-  pushl $init
+  pushl $myinit
   pushl $0  // where caller pc would be
   movl $SYS_exec, %eax
   int $T_SYSCALL
@@ -20,13 +20,13 @@ exit:
   int $T_SYSCALL
   jmp exit
 
-# char init[] = "/init\0";
-init:
-  .string "/init\0"
+# char myinit[] = "/myinit\0";
+myinit:
+  .string "/myinit\0"
 
-# char *argv[] = { init, 0 };
+# char *argv[] = { myinit, 0 };
 .p2align 2
 argv:
-  .long init
+  .long myinit
   .long 0
 
